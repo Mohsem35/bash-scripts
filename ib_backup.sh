@@ -11,7 +11,8 @@ LOG_DIR="/var/lib/db_backups/ibprod/logs"
 DUMP_DIR="/var/lib/db_backups/ibprod" # Updated directory path
 DATE=$(date +%Y-%m-%d-%H:%M:%S)
 LOG_FILE="${LOG_DIR}/daily_${DATE}.log"
-DUMP_FILE="${DUMP_DIR}/ibprod_${DATE}.sql"
+# DUMP_FILE="${DUMP_DIR}/ibprod_${DATE}.sql"
+DUMP_FILE="${DUMP_DIR}/ibprod_${DATE}.dump"
 DUMP_FILE_ZIP="${DUMP_FILE}.gz"
 
 # Ensure the dump and log directories exist
@@ -23,11 +24,15 @@ printf "\033[1;96m%s\n" "--------------------- Backup Script -------------------
 printf "\033[1;96m1. %-30s : ${DATE}\n" "Start Time" | tee -a "${LOG_FILE}"
 
 
-
 # Database dump
-pg_dump -U "${DB_USER}" -d "${DB_NAME}" -f "${DUMP_FILE}"
+# pg_dump -U "${DB_USER}" -d "${DB_NAME}" -f "${DUMP_FILE}"
+pg_dump -U "${DB_USER}" -d "${DB_NAME}" -f "${DUMP_FILE}" -Fc
+
 if [ $? -eq 0 ]; then
     printf "\033[1;96m2. %-30s : Success\n" "Backup database" | tee -a "${LOG_FILE}"
+    
+    # Since the dump is in custom format and already compressed, you might skip the gzip step
+    # If you decide to keep the gzip step, remember the file is already compressed, making further compression optional
     # Compress the dump file
     gzip "${DUMP_FILE}"
     if [ $? -eq 0 ]; then
@@ -40,6 +45,7 @@ else
     printf "\033[1;91m2. %-30s : Failed\n" "Backup database" | tee -a "${LOG_FILE}"
     exit 1
 fi
+
 
 # Transfer dump file to backup server
 scp -v "${DUMP_FILE}.gz" ubuntu@192.168.190.231:/home/ubuntu/ibProdDumpFiles

@@ -17,7 +17,8 @@ ALLOWED_USER=abs
 BACKUP_BASE=/var/log/csb/data/db_backup/${DEPLOYMENT}
 CURRENT_DATE=$(date +%Y/%m/%d)
 BACKUP_DIR=${BACKUP_BASE}/${CURRENT_DATE}
-POSTGRES_DUMP_FILE=${POSTGRES_DB}-${DEPLOYMENT}-$(date +%F-%H:%M:%S).dump
+# POSTGRES_DUMP_FILE=${POSTGRES_DB}-${DEPLOYMENT}-$(date +%F-%H:%M:%S).dump
+POSTGRES_DUMP_FILE=${POSTGRES_DB}-${DEPLOYMENT}-$(date +%F-%H:%M:%S).sql
 BACKUP_LOG_FILE="${BACKUP_DIR}/backup.log"
 BACKUP_ERR_FILE="${BACKUP_DIR}/backup.err"
 
@@ -92,8 +93,15 @@ check_exit_status() {
 
 
 
+# backup_database() {                                                  
+#   ${POSTGRES_DUMP_CMD} -U ${POSTGRES_USER} -Fc -d ${POSTGRES_DB} -f ${BACKUP_DIR}/${POSTGRES_DUMP_FILE}
+#   check_exit_status $? "Backup exception for Postgres database: ${POSTGRES_DB} into file ${BACKUP_DIR}/${POSTGRES_DUMP_FILE}"
+#   log "Backup completed for ${POSTGRES_DB}: ${POSTGRES_DUMP_FILE}"
+# }
+
 backup_database() {                                                  
-  ${POSTGRES_DUMP_CMD} -U ${POSTGRES_USER} -Fc -d ${POSTGRES_DB} -f ${BACKUP_DIR}/${POSTGRES_DUMP_FILE}
+  # Removed -Fc to switch to plain SQL format and added -Fp explicitly
+  ${POSTGRES_DUMP_CMD} -U ${POSTGRES_USER} -Fp -d ${POSTGRES_DB} -f ${BACKUP_DIR}/${POSTGRES_DUMP_FILE}
   check_exit_status $? "Backup exception for Postgres database: ${POSTGRES_DB} into file ${BACKUP_DIR}/${POSTGRES_DUMP_FILE}"
   log "Backup completed for ${POSTGRES_DB}: ${POSTGRES_DUMP_FILE}"
 }
@@ -108,7 +116,7 @@ compress_backup() {
 
 
 transfer_files() {
-  scp -r ${BACKUP_DIR}/${POSTGRES_DUMP_FILE}.gz ${BACKUP_DIR}/tmp-${POSTGRES_DUMP_FILE}_md5 ${REMOTE_USER}@${REMOTE_MACHINE_IP}:${BACKUP_DIR}
+  scp -v -r ${BACKUP_DIR}/${POSTGRES_DUMP_FILE}.gz ${REMOTE_USER}@${REMOTE_MACHINE_IP}:${BACKUP_DIR}
   check_exit_status $? "File transfer not complete: ${POSTGRES_DUMP_FILE}"
   log "File transfer process completed"
 }
