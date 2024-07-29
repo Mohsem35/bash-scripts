@@ -14,29 +14,28 @@ log_message() {
 
 # Delete existing dump files in DST_DIR
 log_message "1. Deleting existing previous dump files in ${DST_DIR}"
-find "${DST_DIR}" -type f -name '*.sql' -print0 | sort -zr | tail -zn +2 | xargs -0 rm -f
-
+find "${DST_DIR}" -type f -name '*.dump.gz' -print0 | sort -zr | tail -zn +2 | xargs -0 rm -f
 
 # Logging message indicating cleanup is done
 log_message "Deleted all previous dump files, kept only the latest."
 
-
 # Unzip the SQL dump file
 log_message "2. Unzipping SQL dump file"
-gzip -d "${DST_DIR}/${DB_NAME}_*.sql.gz"
+gzip -d "${DST_DIR}/${DB_NAME}_*.dump.gz" 2>&1 | tee -a unzip_log.txt
 if [ $? -ne 0 ]; then
-  log_message "Error unzipping file. Aborting."
+  log_message "Error unzipping file. Aborting. Check unzip_log.txt for details."
   exit 1
 fi
 
 # Find the SQL file to restore (assuming only one should exist)
 log_message "3. Finding SQL dump file"
-SQL_FILE=$(find "${DST_DIR}" -type f -name "${DB_NAME}_*.sql" -print -quit)
-
-if [[ -z "$SQL_FILE" ]]; then
+SQL_FILE=$(find "${DST_DIR}" -type f -name "${DB_NAME}_*.dump" | head -n 1)
+if [ -z "${SQL_FILE}" ]; then
   log_message "No SQL dump file found. Aborting."
   exit 1
 fi
+
+log_message "Found SQL dump file: ${SQL_FILE}"
 
 # Recreate the database
 log_message "4. Creating database"
@@ -55,7 +54,7 @@ fi
 
 # Restore the database
 log_message "5. Restoring database"
-psql -U ${DB_USER} -d ${DB_NAME} < "$SQL_FILE"
+pg_restore -U ${DB_USER} -d ${DB_NAME} "${SQL_FILE}"
 
 if [ $? -ne 0 ]; then
   log_message "Error restoring database. Aborting."
@@ -70,4 +69,4 @@ log_message "7. Database restored"
 log_message "Process completed"
 
 # Cleanup environment variables
-unset PGDATABASE PGUSER PGPASSWORD
+unset DB_NAME DB_USER DB_PASSWORD DST_DIR LOG_FILE SQL_FILE
